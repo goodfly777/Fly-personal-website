@@ -1,0 +1,19 @@
+[Unit]
+Description=goodfly777 website backend
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=goodfly777
+Group=goodfly777
+WorkingDirectory=/opt/goodfly777/app
+EnvironmentFile=/etc/goodfly777.env
+ExecStart=/usr/bin/java -jar /opt/goodfly777/app/personal-website-backend.jar
+Restart=on-failure
+RestartSec=5
+UMask=0027
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

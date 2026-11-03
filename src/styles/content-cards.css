@@ -1,0 +1,44 @@
+/* Route-only surfaces. The homepage keeps its existing palette and layout. */
+.site-universe[data-content-cards] {
+  --content-card-bg: #181b22;
+  --content-card-border: #30343d;
+  --card: 222 17.241379% 11.372549%;
+  --muted: 222 17.241379% 11.372549%;
+  --border: 222 11.47541% 21.176471%;
+}
+.site-universe[data-content-cards] :is(.content-card, .content-card-frame) {
+  min-width: 0;
+  background: var(--content-card-bg);
+  border: 1px solid var(--content-card-border);
+  border-radius: 16px;
+}
+.site-universe[data-content-cards] .content-card {
+  padding: 28px;
+}
+.site-universe[data-content-cards] .site-footer {
+  width: min(1120px, calc(100% - 32px));
+  margin-inline: auto;
+  padding: 28px;
+}
+.site-universe[data-content-cards] .chapter-tab:hover:not(:disabled) { background: #222630; }
+.site-universe[data-content-cards] .chapter-tab[aria-current] { background: #222630; }
+.site-universe[data-content-cards] :is(.bg-card\/90, .bg-card\/95) { background: var(--content-card-bg); }
+.site-universe[data-content-cards] .photo-caption { background: var(--content-card-bg); }
+.site-universe[data-content-cards] .site-loading-card {
+  width: min(600px, calc(100% - 32px));
+  margin: 48px auto;
+  min-height: 320px;
+}
+.site-universe[data-content-cards] .site-admin-shell > .pointer-events-none { opacity: 1; }
+.site-universe[data-content-cards] .site-admin-loading {
+  width: min(900px, calc(100% - 32px));
+  margin: 32px auto;
+  background: var(--content-card-bg);
+  border: 1px solid var(--content-card-border);
+  border-radius: 16px;
+}
+@media (max-width: 640px) {
+  .site-universe[data-content-cards] :is(.content-card, .site-footer) {
+    padding: 18px;
+  }
+}

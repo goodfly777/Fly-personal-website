@@ -1,0 +1,50 @@
+/* Blog-only palette. Global theme and other routes retain their existing values. */
+.site-universe[data-page-theme="blog"] {
+  --background: 223.636 25.000% 17.255%;
+  --card: 220.800 25.253% 19.412%;
+  --popover: 222.353 26.984% 24.706%;
+  --secondary: 222.353 26.984% 24.706%;
+  --muted: 222.353 26.984% 24.706%;
+  --accent: 222.353 26.984% 24.706%;
+  --border: 220.000 20.225% 34.902%;
+  --input: 220.000 20.225% 34.902%;
+  --primary: 252.500 94.737% 85.098%;
+  --primary-foreground: 250.000 31.034% 11.373%;
+  --ring: 254.118 100.000% 90.000%;
+  --foreground: 0.000 0.000% 100.000%;
+  --body: 0.000 0.000% 100.000%;
+  --card-foreground: 0.000 0.000% 100.000%;
+  --popover-foreground: 0.000 0.000% 100.000%;
+  --secondary-foreground: 0.000 0.000% 100.000%;
+  --muted-foreground: 0.000 0.000% 100.000%;
+  --accent-foreground: 0.000 0.000% 100.000%;
+  --blog-code-bg: #1B2230;
+  background: hsl(var(--background));
+}
+.site-universe[data-page-theme="blog"] > .site-starfield canvas { opacity: .25; }
+.site-universe[data-page-theme="blog"] .site-route-nav {
+  background: var(--blog-code-bg);
+  border-color: hsl(var(--border));
+}
+.site-universe[data-page-theme="blog"] .site-route-menu {
+  background: hsl(var(--popover));
+  border-color: hsl(var(--border));
+}
+.site-universe[data-page-theme="blog"] .chapter-tab:hover:not(:disabled) {
+  background: hsl(var(--accent));
+}
+.site-universe[data-page-theme="blog"] .chapter-tab[aria-current] {
+  background: hsl(var(--accent));
+  border-color: hsl(var(--primary));
+}
+.site-universe[data-page-theme="blog"] .site-route-links > .chapter-tab:last-child {
+  border-color: hsl(var(--border));
+}
+.site-universe[data-page-theme="blog"] :is(a, button, input, textarea, select):focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 3px;
+}
+
+.site-universe[data-page-theme="blog"] .bg-primary.text-black {
+  color: hsl(var(--primary-foreground));
+}

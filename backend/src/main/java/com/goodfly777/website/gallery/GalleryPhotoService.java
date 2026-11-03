@@ -1,0 +1,339 @@
+package com.goodfly777.website.gallery;
+
+import com.goodfly777.website.common.BadRequestException;
+import com.goodfly777.website.common.NotFoundException;
+import com.goodfly777.website.content.ContentStatus;
+import com.goodfly777.website.gallery.dto.GalleryPhotoRequest;
+import com.goodfly777.website.gallery.dto.GalleryPhotoResponse;
+import com.goodfly777.website.home.HomeGallerySlotRepository;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.util.UriUtils;
+
+@Service
+public class GalleryPhotoService {
+
+  private static final long MAX_IMAGE_SIZE_BYTES = 10L * 1024L * 1024L;
+  private static final Set<String> ALLOWED_IMAGE_TYPES = Set.of(
+    "image/png",
+    "image/jpeg",
+    "image/gif",
+    "image/webp"
+  );
+  private static final Map<String, String> MIME_EXTENSIONS = Map.of(
+    "image/png", ".png",
+    "image/jpeg", ".jpg",
+    "image/gif", ".gif",
+    "image/webp", ".webp"
+  );
+  private static final Set<String> ALLOWED_IMAGE_EXTENSIONS = Set.of(".png", ".jpg", ".jpeg", ".gif", ".webp");
+  private static final Sort GALLERY_SORT = Sort.by("sortOrder").ascending().and(Sort.by("updatedAt").descending());
+
+  private final GalleryPhotoRepository galleryPhotos;
+  private final HomeGallerySlotRepository homeGallerySlots;
+  private final GalleryImageDerivativeService imageDerivatives;
+  private final GalleryWorkRepository galleryWorks;
+  private final Path galleryDirectory;
+  private final String publicPath;
+
+  public GalleryPhotoService(
+    GalleryPhotoRepository galleryPhotos,
+    HomeGallerySlotRepository homeGallerySlots,
+    GalleryImageDerivativeService imageDerivatives,
+    GalleryWorkRepository galleryWorks,
+    @Value("${site.uploads.directory:uploads}") String uploadDirectory,
+    @Value("${site.uploads.public-path:/uploads}") String publicPath
+  ) {
+    this.galleryPhotos = galleryPhotos;
+    this.homeGallerySlots = homeGallerySlots;
+    this.imageDerivatives = imageDerivatives;
+    this.galleryWorks = galleryWorks;
+    this.galleryDirectory = Path.of(uploadDirectory).toAbsolutePath().normalize().resolve("gallery").normalize();
+    this.publicPath = normalizePublicPath(publicPath);
+  }
+
+  @Transactional(readOnly = true)
+  public List<GalleryPhotoResponse> listPublished() {
+    return galleryPhotos.findAllByStatus(ContentStatus.PUBLISHED, GALLERY_SORT).stream()
+      .map(GalleryPhotoResponse::from)
+      .toList();
+  }
+
+  @Transactional(readOnly = true)
+  public List<GalleryPhotoResponse> listAdmin() {
+    return galleryPhotos.findAll(GALLERY_SORT).stream()
+      .map(GalleryPhotoResponse::from)
+      .toList();
+  }
+
+  @Transactional
+  public GalleryPhotoResponse upload(MultipartFile file, GalleryPhotoRequest request) {
+    var work = new GalleryWork();
+    GalleryWorkService.applyMetadata(work, request);
+    galleryWorks.save(work);
+    var response = uploadToWork(work.getId(), file, request);
+    if (work.getSortOrder() <= 0) work.setSortOrder(response.sortOrder());
+    return response;
+  }
+
+  @Transactional
+  public GalleryPhotoResponse uploadToWork(UUID workId, MultipartFile file, GalleryPhotoRequest request) {
+    if (!galleryWorks.existsById(workId)) throw new NotFoundException("Gallery work not found.");
+    if (!StringUtils.hasText(request.title())) throw new BadRequestException("Gallery work title is required.");
+    var storedImage = storeImage(file);
+    var photo = new GalleryPhoto();
+    photo.setWorkId(workId);
+    applyImage(photo, storedImage);
+    apply(photo, request, true);
+
+    return GalleryPhotoResponse.from(galleryPhotos.save(photo));
+  }
+
+  @Transactional
+  public GalleryPhotoResponse update(UUID id, GalleryPhotoRequest request) {
+    var photo = galleryPhotos.findById(id)
+      .orElseThrow(() -> new NotFoundException("Gallery photo not found."));
+
+    apply(photo, request, false);
+    var work = galleryWorks.findById(photo.getWorkId()).orElseThrow();
+    GalleryWorkService.applyMetadata(work, request);
+    galleryPhotos.findAllByWorkId(work.getId(), GALLERY_SORT).forEach(sibling -> {
+      if (!sibling.getId().equals(id)) {
+        sibling.setTitle(work.getTitle()); sibling.setDescription(work.getDescription());
+        sibling.setLocation(work.getLocation()); sibling.setTakenAt(work.getTakenAt()); sibling.setStatus(work.getStatus());
+      }
+    });
+    return GalleryPhotoResponse.from(photo);
+  }
+
+  @Transactional
+  public GalleryPhotoResponse replaceImage(UUID id, MultipartFile file) {
+    var photo = galleryPhotos.findById(id)
+      .orElseThrow(() -> new NotFoundException("Gallery photo not found."));
+    var oldFileName = photo.getFileName();
+    var storedImage = storeImage(file);
+
+    applyImage(photo, storedImage);
+    deleteAfterCommit(oldFileName);
+
+    return GalleryPhotoResponse.from(photo);
+  }
+
+  @Transactional
+  public void delete(UUID id) {
+    var photo = galleryPhotos.findById(id)
+      .orElseThrow(() -> new NotFoundException("Gallery photo not found."));
+
+    homeGallerySlots.findAllByGalleryPhoto(photo).forEach((slot) -> slot.setGalleryPhoto(null));
+    deleteAfterCommit(photo.getFileName());
+    galleryPhotos.delete(photo);
+  }
+
+  private StoredGalleryImage storeImage(MultipartFile file) {
+    if (file == null || file.isEmpty()) {
+      throw new BadRequestException("Please choose an image file.");
+    }
+
+    if (file.getSize() > MAX_IMAGE_SIZE_BYTES) {
+      throw new BadRequestException("Image must be 10MB or smaller.");
+    }
+
+    var mimeType = StringUtils.hasText(file.getContentType()) ? file.getContentType() : "application/octet-stream";
+    if (!ALLOWED_IMAGE_TYPES.contains(mimeType)) {
+      throw new BadRequestException("Only PNG, JPG, GIF, and WebP images are supported.");
+    }
+
+    try {
+      Files.createDirectories(galleryDirectory);
+      var fileName = resolveAvailableFileName(file.getOriginalFilename(), mimeType);
+      var destination = galleryDirectory.resolve(fileName).normalize();
+
+      if (!destination.startsWith(galleryDirectory)) {
+        throw new BadRequestException("Invalid image file name.");
+      }
+
+      try (var input = file.getInputStream()) {
+        Files.copy(input, destination);
+      }
+
+      // Preserve the uploaded bytes. Orientation and resizing apply only to derivatives.
+      var derivatives = imageDerivatives.createDerivatives(destination, galleryDirectory, fileName);
+      org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+        new org.springframework.transaction.support.TransactionSynchronization() {
+          @Override public void afterCompletion(int status) {
+            if (status != STATUS_COMMITTED) cleanupFiles(fileName);
+          }
+        });
+      return new StoredGalleryImage(
+        fileName,
+        mimeType,
+        Files.size(destination),
+        toPublicUrl(fileName),
+        toPublicUrl(derivatives.thumbnailFileName()),
+        toPublicUrl(derivatives.mediumFileName())
+      );
+    } catch (IOException error) {
+      throw new BadRequestException("Image upload failed.");
+    }
+  }
+
+  private void applyImage(GalleryPhoto photo, StoredGalleryImage image) {
+    photo.setFileName(image.fileName());
+    photo.setMimeType(image.mimeType());
+    photo.setSizeBytes(image.sizeBytes());
+    photo.setUrl(image.url());
+    photo.setThumbnailUrl(image.thumbnailUrl());
+    photo.setMediumUrl(image.mediumUrl());
+  }
+
+  private void apply(GalleryPhoto photo, GalleryPhotoRequest request, boolean newUpload) {
+    var title = clean(request.title());
+    if (!StringUtils.hasText(title)) {
+      throw new BadRequestException("Gallery photo title is required.");
+    }
+
+    photo.setTitle(title);
+    photo.setDescription(clean(request.description()));
+    photo.setLocation(clean(request.location()));
+    photo.setTakenAt(clean(request.takenAt()));
+    photo.setSortOrder(resolveSortOrder(photo, request, newUpload));
+    photo.setStatus(request.status() == null ? ContentStatus.DRAFT : request.status());
+  }
+
+  private int resolveSortOrder(GalleryPhoto photo, GalleryPhotoRequest request, boolean newUpload) {
+    if (request.sortOrder() != null && request.sortOrder() > 0) {
+      return request.sortOrder();
+    }
+
+    if (!newUpload && photo.getSortOrder() > 0) {
+      return photo.getSortOrder();
+    }
+
+    return galleryPhotos.findMaxSortOrder() + 1;
+  }
+
+  private void deleteFile(String fileName) {
+    var target = galleryDirectory.resolve(fileName).normalize();
+
+    if (!target.startsWith(galleryDirectory)) {
+      throw new BadRequestException("Invalid image file name.");
+    }
+
+    try {
+      Files.deleteIfExists(target);
+    } catch (IOException error) {
+      throw new BadRequestException("Image delete failed.");
+    }
+  }
+
+  private void deleteAfterCommit(String fileName) {
+    org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+      new org.springframework.transaction.support.TransactionSynchronization() {
+        @Override public void afterCommit() {
+          cleanupFiles(fileName);
+        }
+      });
+  }
+
+  private void cleanupFiles(String fileName) {
+    try {
+      deleteFile(fileName);
+      deleteDerivativeFile(fileName, "thumbnail");
+      deleteDerivativeFile(fileName, "medium");
+    } catch (RuntimeException error) {
+      org.slf4j.LoggerFactory.getLogger(GalleryPhotoService.class).warn("Could not clean up gallery image {}", fileName, error);
+    }
+  }
+
+  private void deleteDerivativeFile(String fileName, String variant) {
+    var derivativeFileName = GalleryImageDerivativeService.derivativeFileName(fileName, variant);
+    if (!derivativeFileName.equals(fileName)) {
+      deleteFile(derivativeFileName);
+    }
+  }
+
+  private String resolveAvailableFileName(String originalFileName, String mimeType) throws IOException {
+    var sanitized = sanitizeFileName(originalFileName);
+    var extension = extensionOf(sanitized);
+
+    if (!ALLOWED_IMAGE_EXTENSIONS.contains(extension)) {
+      var baseName = StringUtils.hasText(extension)
+        ? sanitized.substring(0, sanitized.length() - extension.length())
+        : sanitized;
+
+      sanitized = baseName + MIME_EXTENSIONS.getOrDefault(mimeType, "");
+      extension = extensionOf(sanitized);
+    }
+
+    var baseName = sanitized.substring(0, sanitized.length() - extension.length());
+    var candidate = sanitized;
+    var counter = 2;
+
+    while (Files.exists(galleryDirectory.resolve(candidate))
+        || Files.exists(galleryDirectory.resolve(GalleryImageDerivativeService.derivativeFileName(candidate, "thumbnail")))
+        || Files.exists(galleryDirectory.resolve(GalleryImageDerivativeService.derivativeFileName(candidate, "medium")))) {
+      candidate = "%s-%d%s".formatted(baseName, counter, extension);
+      counter += 1;
+    }
+
+    return candidate;
+  }
+
+  private String sanitizeFileName(String originalFileName) {
+    var cleaned = StringUtils.cleanPath(StringUtils.hasText(originalFileName) ? originalFileName : "gallery-photo");
+
+    if (cleaned.contains("..")) {
+      throw new BadRequestException("Invalid image file name.");
+    }
+
+    var fileName = Path.of(cleaned.replace('\\', '/')).getFileName().toString().trim();
+    if (!StringUtils.hasText(fileName)) {
+      fileName = "gallery-photo";
+    }
+
+    return fileName
+      .replaceAll("[^\\p{IsAlphabetic}\\p{IsDigit}._ -]", "-")
+      .replaceAll("-{2,}", "-");
+  }
+
+  private String extensionOf(String fileName) {
+    var dotIndex = fileName.lastIndexOf('.');
+    return dotIndex > 0 ? fileName.substring(dotIndex).toLowerCase() : "";
+  }
+
+  private String toPublicUrl(String fileName) {
+    return "%s/gallery/%s".formatted(publicPath, UriUtils.encodePathSegment(fileName, StandardCharsets.UTF_8));
+  }
+
+  private String normalizePublicPath(String value) {
+    var normalized = StringUtils.hasText(value) ? value.trim() : "/uploads";
+    normalized = normalized.startsWith("/") ? normalized : "/" + normalized;
+    return normalized.replaceAll("/+$", "");
+  }
+
+  private String clean(String value) {
+    return value == null ? "" : value.trim();
+  }
+
+  private record StoredGalleryImage(
+    String fileName,
+    String mimeType,
+    long sizeBytes,
+    String url,
+    String thumbnailUrl,
+    String mediumUrl
+  ) {
+  }
+}
