@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import vm from 'node:vm';
+import ts from 'typescript';
+const module={exports:{}};
+vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/lib/siteContact.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{module,exports:module.exports,URL});
+const {DEFAULT_GITHUB_URL,getGithubUrl,withGithubUrl,isHttpUrl}=module.exports;
+assert.equal(getGithubUrl([]),'https://github.com/goodfly777?tab=repositories');
+const links=[{label:'Other',url:'https://example.com'},{label:'Github',url:'https://github.com/old'}];
+const updated=withGithubUrl(links,' https://github.com/edited ');
+assert.equal(getGithubUrl(updated),'https://github.com/edited');
+assert.equal(updated[0].url,'https://example.com');
+assert.equal(links[1].url,'https://github.com/old','Editing must not mutate saved records.');
+assert.equal(withGithubUrl(updated,'').at(-1).url,DEFAULT_GITHUB_URL);
+assert.equal(withGithubUrl(updated,DEFAULT_GITHUB_URL).filter(link=>link.label==='GitHub').length,1);
+for(const value of ['javascript:alert(1)','data:text/html,hi','https:missing-slashes','relative/path',''])assert.equal(isHttpUrl(value),false);
+assert.equal(isHttpUrl(DEFAULT_GITHUB_URL),true);
+assert.equal(isHttpUrl('http://github.example.test/user'),true);

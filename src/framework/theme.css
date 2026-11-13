@@ -1,0 +1,23 @@
+/* Homepage palette shared by routes, portals and the admin workspace. */
+:root {
+  color-scheme: dark;
+  --background: 240 33% 2%;
+  --foreground: 0 0% 100%;
+  --body: 0 0% 100%;
+  --card: 226 49% 8%;
+  --card-foreground: 0 0% 100%;
+  --popover: 226 49% 8%;
+  --popover-foreground: 0 0% 100%;
+  --primary: 231 100% 95%;
+  --primary-foreground: 228 43% 12%;
+  --secondary: 225 42% 17%;
+  --secondary-foreground: 0 0% 100%;
+  --muted: 225 38% 12%;
+  --muted-foreground: 0 0% 100%;
+  --accent: 225 42% 20%;
+  --accent-foreground: 0 0% 100%;
+  --border: 225 24% 24%;
+  --input: 225 24% 28%;
+  --ring: 234 100% 76%;
+  --radius: 1rem;
+}

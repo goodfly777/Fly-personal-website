@@ -1,0 +1,39 @@
+/* One editor surface. Sections and rows are separated by space and rules. */
+.admin-about-editor {
+  --admin-about-muted: #a6afbf;
+  --admin-about-line: var(--content-card-border, #30343d);
+}
+.admin-about-sections { padding: 8px 24px 24px; }
+.admin-about-section { min-width: 0; padding: 24px 0; border-bottom: 1px solid var(--admin-about-line); }
+.admin-about-section:last-child { border-bottom: 0; }
+.admin-about-editor .admin-about-section > div > button[aria-expanded] { min-height: 44px; }
+.admin-about-editor .admin-about-section > div > button[aria-expanded]:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 3px; }
+.admin-entry-help { display: block; color: var(--admin-about-muted); font-size: 12px; line-height: 1.8; margin-top: 8px; font-weight: 400; }
+.admin-entry-default { display: block; margin-top: 4px; color: #b5b0d1; font-size: 11px; line-height: 1.6; font-weight: 400; }
+.admin-about-entry label > span:first-child { min-height: 38px; }
+.admin-about-entry textarea { background: hsl(var(--card)); color: hsl(var(--foreground)); }
+.admin-about-entry :is(input, textarea)::placeholder { color: #9aa6ba; opacity: 1; font-weight: 400; }
+.admin-profile-heading, .admin-profile-fields { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(0, 2.5fr) 112px; gap: 16px; align-items: center; }
+.admin-profile-heading { padding: 0 0 8px; color: var(--admin-about-muted); font-size: 12px; }
+.admin-profile-row { min-width: 0; padding: 16px 0; border-top: 1px solid var(--admin-about-line); }
+.admin-profile-fields > label { min-width: 0; }
+.admin-profile-label { display: none; }
+.admin-profile-actions { display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
+.admin-profile-settings { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 8px; border-radius: 6px; color: var(--admin-about-muted); font-size: 13px; }
+.admin-profile-settings:hover, .admin-profile-settings[aria-expanded="true"] { color: hsl(var(--foreground)); background: #ffffff06; }
+.admin-about-editor .admin-profile-delete { min-width: 44px; min-height: 44px; color: #fca5a5; }
+.admin-about-editor .admin-profile-delete:hover { color: #fecaca; background: #ef444415; }
+.admin-profile-options:not([hidden]) { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(0, 2fr) auto; align-items: end; gap: 16px; margin-top: 12px; padding: 16px; background: #ffffff04; border-radius: 6px; }
+.admin-profile-options > label { min-width: 0; }
+.admin-profile-options > label > span { display: block; margin-bottom: 8px; color: var(--admin-about-muted); font-size: 12px; }
+.admin-profile-wide { display: flex; align-items: center; gap: 8px; min-height: 44px; font-size: 13px; white-space: nowrap; }
+.admin-profile-wide input { width: 16px; height: 16px; accent-color: hsl(var(--ring)); }
+@media (max-width: 767px) {
+  .admin-about-sections { padding: 4px 16px 16px; }
+  .admin-about-section { padding: 20px 0; }
+  .admin-profile-heading { display: none; }
+  .admin-profile-fields { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .admin-profile-label { display: block; font-size: 12px; color: var(--admin-about-muted); margin-bottom: 8px; }
+  .admin-profile-actions { justify-content: flex-start; }
+  .admin-profile-options:not([hidden]) { grid-template-columns: minmax(0, 1fr); padding: 12px; }
+}

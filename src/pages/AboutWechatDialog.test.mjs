@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const about=readFileSync('src/pages/About.tsx','utf8');
+const footer=readFileSync('src/components/Layout.tsx','utf8');
+const dialog=readFileSync('src/components/WechatContact.tsx','utf8');
+const css=readFileSync('src/styles/wechat-contact.css','utf8');
+assert.doesNotMatch(about,/Contact Info Card|Let's Connect|createPortal|isWechatOpen|连接我的世界|mmqrcode/);
+assert.match(footer,/<WechatContact/);
+assert.match(footer,/contact\?\.wechatQrImageUrl/);
+assert.match(footer,/getAboutContent\(\)/);
+assert.match(dialog,/<Dialog.Portal>/);
+assert.match(dialog,/<Dialog.Trigger asChild>/);
+assert.match(dialog,/<Dialog.Close asChild>/);
+assert.match(dialog,/暂未上传微信二维码/);
+assert.match(dialog,/onError=/);
+assert.match(css,/object-fit: contain/);
+assert.match(css,/height: auto/);
+assert.match(css,/z-index: 121/);

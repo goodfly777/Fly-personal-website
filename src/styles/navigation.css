@@ -1,0 +1,16 @@
+/* Shared route navigation. Chapter navigation has a separate, quieter treatment. */
+.chapter-tab{display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:8px 12px;border:1px solid transparent;border-radius:8px;background:transparent;color: hsl(var(--foreground));font-size:14px;white-space:nowrap;text-decoration:none;transition:color .2s,background .2s,border-color .2s}
+.chapter-tab:hover:not(:disabled){color: hsl(var(--foreground));background:#ffffff08}
+.chapter-tab[aria-current]{color: hsl(var(--foreground));background:#b6baff12;border-color:#b6baff26}
+.chapter-tab:focus-visible{outline:2px solid #a5b4fc;outline-offset:3px}
+.chapter-tab:disabled{cursor:not-allowed;opacity:.5}
+.chapter-tab-code{font-size:9px;letter-spacing:.08em;color: hsl(var(--foreground))}
+.site-route-nav{position:sticky;top:0;z-index:50;padding:calc(14px + env(safe-area-inset-top)) 32px 14px;background:transparent}
+.site-route-desktop{display:flex;align-items:center;justify-content:space-between;gap:40px;max-width:1280px;margin:auto}
+.site-brand{display:inline-flex;align-items:center;gap:12px;color: hsl(var(--foreground));font-size:14px;font-weight:600;white-space:nowrap}
+.site-brand-mark{font-size:29px;font-weight:750;letter-spacing:-.12em;margin-right:3px}.site-brand-mark>span{color: hsl(var(--foreground))}
+.site-brand small{display:block;font-size:8px;font-weight:400;letter-spacing:.13em;color: hsl(var(--foreground));margin-top:4px}
+.site-route-links{display:flex;align-items:center;gap:4px}.site-route-links .chapter-tab-code{display:none}
+.site-route-mobile-bar,.site-route-menu{display:none}
+@media(max-width:1100px){.site-route-nav{padding-inline:20px}.site-route-desktop{gap:16px}.site-route-links .chapter-tab{padding-inline:9px}}
+@media(max-width:1023px){.site-route-desktop{display:none}.site-route-mobile-bar{display:flex;align-items:center;justify-content:space-between;gap:16px}.site-route-menu{display:block;position:absolute;top:100%;left:0;right:0;max-height:calc(100dvh - 78px - env(safe-area-inset-top));overflow-y:auto;overscroll-behavior:contain;background:#080b14;border-bottom:1px solid #ffffff20}.site-route-menu-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:16px 20px 24px}.site-route-menu .chapter-tab{justify-content:start;padding-inline:16px;min-height:48px}.site-route-menu .chapter-tab-code{min-width:32px}}

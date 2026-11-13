@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+const app=readFileSync('src/App.tsx','utf8');
+const home=readFileSync('src/pages/Home.tsx','utf8');
+const layout=readFileSync('src/components/Layout.tsx','utf8');
+assert.doesNotMatch(app, /path="\/projects"|path="\/project\/|LegacyCaseRedirect/);
+assert.match(app, /path="\*"/);
+assert.doesNotMatch(app, /import\('\.\/pages\/(Projects|ProjectSmartHome|ProjectWeb3)'\)/);
+assert.doesNotMatch(layout, /项目经历/);
+assert.doesNotMatch(home, /精选项目|最新博客|const projects =/);
+assert.match(home, /label="精选博客"/);
+assert.match(home, /\/api\/blog-posts\/home-featured/);
+assert.match(home, /encodeURIComponent\(post.slug\)/);
